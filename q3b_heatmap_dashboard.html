@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Habit Heatmap Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@1.2.0"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #f9f9f9;
+    }
+    h2 {
+      margin-top: 40px;
+      color: #333;
+    }
+    canvas {
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📊 Habit Completion Heatmaps</h1>
+  <p>Select your <code>q3a_habit_summary.json</code> file to visualize user habit success rates.</p>
+  <input type="file" id="fileInput" accept=".json" />
+
+  <div id="charts"></div>
+
+  <script>
+    document.getElementById('fileInput').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function (event) {
+        const data = JSON.parse(event.target.result);
+        const chartsDiv = document.getElementById('charts');
+        chartsDiv.innerHTML = ''; // clear old charts
+
+        Object.keys(data).forEach((user, index) => {
+          const habits = data[user];
+          const canvas = document.createElement('canvas');
+          canvas.id = `heatmap-${index}`;
+          chartsDiv.appendChild(document.createElement('h2')).innerText = `👤 ${user}`;
+          chartsDiv.appendChild(canvas);
+
+          const habitEntries = Object.entries(habits);
+          const chartData = habitEntries.map(([, details], i) => ({
+            x: 0,
+            y: i,
+            v: details.success_rate
+          }));
+
+          const ctx = canvas.getContext("2d");
+          new Chart(ctx, {
+            type: 'matrix',
+            data: {
+              datasets: [{
+                label: `${user} habits`,
+                data: chartData,
+                backgroundColor(context) {
+                  const value = context.dataset.data[context.dataIndex].v;
+                  const alpha = value / 100;
+                  return `rgba(0, 128, 255, ${alpha})`;
+                },
+                width: ({chart}) => chart.chartArea.width,
+                height: () => 40,
+              }]
+            },
+            options: {
+              scales: {
+                x: {
+                  display: false
+                },
+                y: {
+                  type: 'category',
+                  labels: habitEntries.map(([habit]) => habit),
+                  grid: {
+                    display: false
+                  },
+                  ticks: {
+                    font: { size: 14 }
+                  }
+                }
+              },
+              plugins: {
+                tooltip: {
+                  callbacks: {
+                    title: () => '',
+                    label: context => {
+                      const habit = habitEntries[context.dataIndex][0];
+                      const value = context.dataset.data[context.dataIndex].v;
+                      return `${habit}: ${value}% success`;
+                    }
+                  }
+                },
+                legend: { display: false },
+                title: {
+                  display: false
+                }
+              }
+            }
+          });
+        });
+      };
+
+      reader.readAsText(file);
+    });
+  </script>
+</body>
+</html>
